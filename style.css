@@ -1,0 +1,16 @@
+.gallery {
+  width: 1288px;
+  height: 968px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.gallery .video {
+  width: 320px;
+  height: 240px;
+  border: 1px solid #000;
+  margin: 0;
+  display: block;
+  float: left;
+}
