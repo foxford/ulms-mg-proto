@@ -7,10 +7,10 @@ export const CONSTRAINTS = { audio: true, video: { width: 320, height: 240 } };
 
 export const ICE_SERVERS = [
   {
-    urls: ["stun:stun.testing01.netology-group.services:3478"]
+    urls: ["stun:stun.staging01.netology-group.services:3478"]
   },
   {
-    urls: ["turn:turn.testing01.netology-group.services:3478"],
+    urls: ["turn:turn.staging01.netology-group.services:3478"],
     username: "ntg",
     credential: "password"
   }
