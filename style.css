@@ -1,16 +1,30 @@
 .gallery {
-  width: 1288px;
-  height: 968px;
+  width: 1292px;
+  height: 972px;
   position: absolute;
   top: 0;
   left: 0;
 }
 
-.gallery .video {
+.gallery .video-wrapper {
   width: 320px;
   height: 240px;
+  float: left;
+}
+
+.gallery .video {
+  width: 100%;
+  height: 100%;
   border: 1px solid #000;
   margin: 0;
   display: block;
-  float: left;
+  position: relative;
+  top: 0;
+  left: 0;
+}
+
+.gallery .mute-btn {
+  position: relative;
+  top: -22px; 
+  left: 265px;
 }

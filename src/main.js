@@ -49,7 +49,7 @@ class App {
     let videoEl = document.getElementById('video0');
     videoEl.srcObject = stream;
     videoEl.muted = true;
-    this.publisher.addStream(stream);
+    this.publisher.addTracks(stream);
 
     let sdpOffer = await this.publisher.getSdpOffer(true);
     let sdpAnswer = (await this.conferenceClient.createRtcSignal(ownedHandleId, sdpOffer)).jsep;
@@ -90,25 +90,36 @@ class App {
     let handleId = (await this.conferenceClient.connectToRtc(rtcId, 'read')).handle_id;
     let viewer = new PcManager();
 
-    viewer.onStreamAdded(stream => {
+    viewer.onTrackAdded(evt => {
+      if (this.viewers[rtcId].videoEl && this.viewers[rtcId].videoEl.srcObject) return;
+      let videoEl;
+
       // Find first unused video element and take it.
-      let videoEl = this.viewers[rtcId].videoEl;
+      for (let i = 1; i < 16; i++) {
+        let el = document.getElementById(`video${i}`);
 
-      if (!videoEl) {
-        for (let i = 1; i < 16; i++) {
-          let el = document.getElementById(`video${i}`);
-
-          if (!el.srcObject) {
-            videoEl = el;
-            break;
-          }
+        if (!el.srcObject) {
+          videoEl = el;
+          break;
         }
       }
 
-      if (videoEl) {
-        videoEl.srcObject = stream;
-        this.viewers[rtcId].videoEl = videoEl;
+      if (!videoEl) {
+        console.warn('No free video slots available');
+        return;
       }
+
+      if (evt.streams && evt.streams[0]) {
+        console.log('ADD VIEWER STREAM', evt.streams[0], videoEl);
+        videoEl.srcObject = evt.streams[0];
+      } else {
+        console.log('ADD VIEWER TRACK', evt.track, videoEl);
+        let stream = new MediaStream();
+        videoEl.srcObject = stream;
+        stream.addTrack(evt.track);
+      }
+
+      this.viewers[rtcId].videoEl = videoEl;
     });
 
     viewer.onIceCandidatesBufferFlush(candidates => {
@@ -149,3 +160,13 @@ document.addEventListener('DOMContentLoaded', async function () {
   await app.startStreaming();
   await app.connectToRunningStreams();
 });
+
+for (let btnEl of document.getElementsByClassName('mute-btn')) {
+  btnEl.addEventListener('click', evt => {
+    let videoEl = document.getElementById(evt.target.dataset.id);
+    if (!videoEl.srcObject) return;
+    let audioTracks = videoEl.srcObject.getAudioTracks();
+    if (!audioTracks[0]) return;
+    audioTracks[0].enabled = !audioTracks[0].enabled;
+  });
+}

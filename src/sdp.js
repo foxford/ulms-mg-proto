@@ -1,6 +1,6 @@
 import { parse, write } from 'sdp-transform'
 
-function getPayloadByCodec (codec, rtp) {
+function getPayloadByCodec(codec, rtp) {
   let payload = null
   let i
 
@@ -15,13 +15,13 @@ function getPayloadByCodec (codec, rtp) {
   return payload
 }
 
-function filterByPayload (payload) {
+function filterByPayload(payload) {
   return function (item) {
     return item.payload === payload
   }
 }
 
-function mapByPayload (payload) {
+function mapByPayload(payload) {
   return function (item) {
     item.payload = payload
 
@@ -29,7 +29,7 @@ function mapByPayload (payload) {
   }
 }
 
-export function transformOfferSDP (sdp, opts) {
+export function transformOfferSDP(sdp, opts) {
   const sdpParsed = parse(sdp)
   const config = {
     audio: {

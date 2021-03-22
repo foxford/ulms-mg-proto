@@ -15,19 +15,19 @@ export default class PcManager {
 
     this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.pc.onicecandidate = evt => this.iceCandidatesBuffer.push(evt.candidate);
-    this.pc.ontrack = evt => this.onStreamAddedCallback && this.onStreamAddedCallback(evt.streams[0]);
+    this.pc.ontrack = evt => this.onTrackAddedCallback && this.onTrackAddedCallback(evt);
 
     this.pc.oniceconnectionstatechange = _evt => {
       if (this.pc.iceConnectionState === "failed" && this.pc.restartIce) this.pc.restartIce();
     }
   }
 
-  addStream(stream) {
-    this.pc.addStream(stream);
+  onTrackAdded(callback) {
+    this.onTrackAddedCallback = callback;
   }
 
-  onStreamAdded(callback) {
-    this.onStreamAddedCallback = callback;
+  addTracks(stream) {
+    stream.getTracks().forEach(track => this.pc.addTrack(track, stream));
   }
 
   async getSdpOffer(isPublisher) {

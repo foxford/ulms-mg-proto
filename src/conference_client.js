@@ -1,7 +1,7 @@
 import mqtt from 'mqtt';
-import {MQTT_URL, CONFERENCE_ACCOUNT_ID} from './constants';
+import { MQTT_URL, CONFERENCE_ACCOUNT_ID } from './constants';
 
-const REQUEST_TIMEOUT = 5000;
+const REQUEST_TIMEOUT = 60000;
 
 export default class ConferenceClient {
   constructor(meAgentId, mqttPassword) {
@@ -18,10 +18,17 @@ export default class ConferenceClient {
   async connect() {
     return new Promise((resolve, reject) => {
       this.client = new mqtt.connect(MQTT_URL, {
-        protocolVersion: 5,
-        username:'v2::default',
-        password: this.mqttPassword,
         clientId: this.meAgentId,
+        password: this.mqttPassword,
+        username: '',
+        keepalive: 10,
+        properties: {
+          userProperties: {
+            connection_mode: 'default',
+            connection_version: 'v2',
+          },
+        },
+        protocolVersion: 5,
         reconnectPeriod: 0
       });
 
@@ -45,6 +52,30 @@ export default class ConferenceClient {
 
   async enterRoom(roomId) {
     return await this._callMethod('room.enter', { id: roomId });
+
+    // let promise = new Promise((resolve, reject) => {
+    //   let timeoutHandle = setTimeout(() => {
+    //     delete this.pendingTransactions.roomEntrance;
+    //     reject('Room entrance timed out');
+    //   }, REQUEST_TIMEOUT);
+
+    //   this.pendingTransactions.roomEntrance = { resolve, timeoutHandle };
+    // });
+
+    // let properties = {
+    //   responseTopic: this.inTopic,
+    //   correlationData: Math.random().toString(36).substr(2, 10),
+    //   userProperties: {
+    //     type: 'request',
+    //     method: 'room.enter',
+    //     local_timestamp: new Date().getTime().toString(),
+    //   },
+    // };
+
+    // let payload = { id: roomId };
+    // console.debug('Outgoing message', payload, properties);
+    // this.client.publish(this.outTopic, JSON.stringify(payload), { properties });
+    // await promise;
   }
 
   async listRtc(roomId) {
@@ -108,8 +139,8 @@ export default class ConferenceClient {
   _handleMessage(_topic, payloadBytes, packet) {
     let correlationData = packet.properties.correlationData;
     let payload = JSON.parse(payloadBytes);
-    console.debug('Incoming message', payload);
-    
+    console.debug('Incoming message', payload, packet.properties);
+
     switch (packet.properties.userProperties.type) {
       case 'response':
         if (this.pendingTransactions[correlationData]) {
@@ -123,6 +154,14 @@ export default class ConferenceClient {
 
       case 'event':
         switch (packet.properties.userProperties.label) {
+          // case 'room.enter':
+          //   if (payload.agent_id === this.meAgentId) {
+          //     let { resolve, timeoutHandle } = this.pendingTransactions.roomEntrance;
+          //     clearInterval(timeoutHandle);
+          //     delete this.pendingTransactions.roomEntrance;
+          //     resolve();
+          //   }
+
           case 'rtc_stream.update':
             if (this.onRtcStreamUpdateCallback) this.onRtcStreamUpdateCallback(payload);
             break;
