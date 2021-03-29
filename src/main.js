@@ -60,6 +60,10 @@ class App {
     this.leaderVideoComponent.onMuteAudioForAll(async (rtcId, value) => {
       await this._updateAgentWriterConfig({[rtcId]: { send_audio: !value }});
     });
+
+    this.leaderVideoComponent.onBitrateRequestSubmit(async (rtcId, bitrate) => {
+      await this._updateAgentWriterConfig({[rtcId]: { video_remb: bitrate }});
+    })
   }
 
   _initRegularVideoComponents(els) {

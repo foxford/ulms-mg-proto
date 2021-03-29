@@ -19,6 +19,7 @@ export default class VideoComponent {
     this.onMuteVideoForAllCallback = null;
     this.onMuteAudioForMeCallback = null;
     this.onMuteAudioForAllCallback = null;
+    this.onBitrateRequestSubmitCallback = null;
 
     this.el = el;
     this.videoEl = el.getElementsByTagName('video')[0];
@@ -30,6 +31,8 @@ export default class VideoComponent {
     this.rtcIdEl = el.getElementsByClassName('rtc-id')[0];
     this.videoBitrateEl = el.getElementsByClassName('video-bitrate')[0];
     this.audioBitrateEl = el.getElementsByClassName('audio-bitrate')[0];
+    this.bitrateRequestInputEl = el.getElementsByClassName('bitrate-request-input')[0];
+    this.bitrateRequestSubmitEl = el.getElementsByClassName('bitrate-request-submit')[0];
 
     if (this.makeLeaderBtnEl) {
       this.makeLeaderBtnEl.addEventListener('click', this._onMakeLeaderBtnClick.bind(this));
@@ -39,6 +42,13 @@ export default class VideoComponent {
     this.muteVideoForAllBtnEl.addEventListener('click', this._onMuteVideoForAllBtnClick.bind(this));
     this.muteAudioForMeBtnEl.addEventListener('click', this._onMuteAudioForMeBtnClick.bind(this));
     this.muteAudioForAllBtnEl.addEventListener('click', this._onMuteAudioForAllBtnClick.bind(this));
+
+    if (this.bitrateRequestSubmitEl) {
+      this.bitrateRequestSubmitEl.addEventListener(
+        'click',
+        this._onBitrateRequestSubmitClick.bind(this)
+      );
+    }
   }
 
   onMakeLeader(callback) {
@@ -59,6 +69,10 @@ export default class VideoComponent {
 
   onMuteAudioForAll(callback) {
     this.onMuteAudioForAllCallback = callback;
+  }
+
+  onBitrateRequestSubmit(callback) {
+    this.onBitrateRequestSubmitCallback = callback;
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -103,7 +117,7 @@ export default class VideoComponent {
     this._setState({
       videoBitrate: report.videoBitrate,
       audioBitrate: report.audioBitrate,
-    })
+    });
   }
 
   isFree() {
@@ -154,6 +168,14 @@ export default class VideoComponent {
     }
 
     this._setState({ muteAudioForAll: newValue });
+  }
+
+  async _onBitrateRequestSubmitClick() {
+    let bitrate = parseInt(this.bitrateRequestInputEl.value);
+
+    if (bitrate && this.onBitrateRequestSubmitCallback) {
+      await this.onBitrateRequestSubmitCallback(this.state.rtcId, bitrate);
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
