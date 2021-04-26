@@ -1,30 +1,30 @@
 import PcManager from './pc_manager';
 
 export default class ViewerManager {
-  constructor(conferenceClient, leaderVideoComponent, regularVideoComponents) {
+  constructor(conferenceClient, pinVideoComponent, regularVideoComponents) {
     this.viewers = {};
     this.conferenceClient = conferenceClient;
-    this.leaderVideoComponent = leaderVideoComponent;
+    this.pinVideoComponent = pinVideoComponent;
     this.regularVideoComponents = regularVideoComponents;
   }
 
-  connectLocalStream(rtcId, stream) {
+  connectLocalStream(rtc, stream) {
     let videoComponent = this._findFreeVideoComponent();
-    videoComponent.setRtcId(rtcId);
-    this.viewers[rtcId] = { videoComponent };
+    videoComponent.setRtcId(rtc.id);
+    this.viewers[rtc.id] = { videoComponent };
     videoComponent.setStream(stream, true);
   }
 
-  async connect(rtcId) {
+  async connect(rtc) {
     let videoComponent = this._findFreeVideoComponent();
-    videoComponent.setRtcId(rtcId);
+    videoComponent.setRtcId(rtc.id);
 
     if (!videoComponent) {
       console.warn('No free video components available');
       return;
     }
 
-    let handleId = (await this.conferenceClient.connectToRtc(rtcId, 'read')).handle_id;
+    let handleId = (await this.conferenceClient.connectToRtc(rtc.id, 'read')).handle_id;
     let pcManager = new PcManager();
     
     pcManager.onTrackAdded(evt => {
@@ -42,11 +42,11 @@ export default class ViewerManager {
     });
 
     pcManager.onStats(report => {
-      let videoComponent = this.getVideoComponent(rtcId);
+      let videoComponent = this.getVideoComponent(rtc.id);
       if(videoComponent) videoComponent.setStats(report);
     });
 
-    this.viewers[rtcId] = { videoComponent, pcManager };
+    this.viewers[rtc.id] = { videoComponent, pcManager };
 
     let sdpOffer = await pcManager.getSdpOffer(false);
     let sdpAnswer = (await this.conferenceClient.createRtcSignal(handleId, sdpOffer)).jsep;
@@ -68,17 +68,17 @@ export default class ViewerManager {
     return this.viewers[rtcId] && this.viewers[rtcId].videoComponent;
   }
 
-  toggleLeader(newLeaderRtcId) {
-    let oldLeaderRtcId = this.leaderVideoComponent.getRtcId();
-    if (newLeaderRtcId === oldLeaderRtcId) return;
+  togglePin(newPinRtcId) {
+    let oldPinRtcId = this.pinVideoComponent.getRtcId();
+    if (newPinRtcId === oldPinRtcId) return;
 
-    let regularVideoComponent = this.viewers[newLeaderRtcId].videoComponent;
-    this.leaderVideoComponent.swap(regularVideoComponent);
+    let regularVideoComponent = this.viewers[newPinRtcId].videoComponent;
+    this.pinVideoComponent.swap(regularVideoComponent);
 
-    this.viewers[newLeaderRtcId].videoComponent = this.leaderVideoComponent;
+    this.viewers[newPinRtcId].videoComponent = this.pinVideoComponent;
 
-    if (this.viewers[oldLeaderRtcId]) {
-      this.viewers[oldLeaderRtcId].videoComponent = regularVideoComponent;
+    if (this.viewers[oldPinRtcId]) {
+      this.viewers[oldPinRtcId].videoComponent = regularVideoComponent;
     }
   }
 

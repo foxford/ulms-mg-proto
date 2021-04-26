@@ -9,7 +9,7 @@ import VideoComponent from './video_component';
 import ViewerManager from './viewer_manager';
 
 class App {
-  constructor(config, leaderVideoEl, regularVideoEls) {
+  constructor(config, pinVideoEl, regularVideoEls) {
     this.conferenceRoomId = config.conferenceRoomId;
     this.eventRoomId = config.eventRoomId;
 
@@ -18,7 +18,7 @@ class App {
     this.publisher = null;
 
     this._initUlmsClient(config.agentLabel, config.accountLabel, config.mqttPassword);
-    this._initLeaderVideoComponent(leaderVideoEl);
+    this._initPinVideoComponent(pinVideoEl);
     this._initRegularVideoComponents(regularVideoEls);
     this._initViewerManager();
   }
@@ -42,26 +42,26 @@ class App {
     });
   }
 
-  _initLeaderVideoComponent(el) {
-    this.leaderVideoComponent = new VideoComponent(el);
+  _initPinVideoComponent(el) {
+    this.pinVideoComponent = new VideoComponent(el);
 
-    this.leaderVideoComponent.onMuteVideoForMe(async (rtcId, value) => {
+    this.pinVideoComponent.onMuteVideoForMe(async (rtcId, value) => {
       await this._updateAgentReaderConfig({[rtcId]: { receive_video: !value }});
     });
 
-    this.leaderVideoComponent.onMuteVideoForAll(async (rtcId, value) => {
+    this.pinVideoComponent.onMuteVideoForAll(async (rtcId, value) => {
       await this._updateAgentWriterConfig({[rtcId]: { send_video: !value }});
     });
 
-    this.leaderVideoComponent.onMuteAudioForMe(async (rtcId, value) => {
+    this.pinVideoComponent.onMuteAudioForMe(async (rtcId, value) => {
       await this._updateAgentReaderConfig({[rtcId]: { receive_audio: !value }});
     });
 
-    this.leaderVideoComponent.onMuteAudioForAll(async (rtcId, value) => {
+    this.pinVideoComponent.onMuteAudioForAll(async (rtcId, value) => {
       await this._updateAgentWriterConfig({[rtcId]: { send_audio: !value }});
     });
 
-    this.leaderVideoComponent.onBitrateRequestSubmit(async (rtcId, bitrate) => {
+    this.pinVideoComponent.onBitrateRequestSubmit(async (rtcId, bitrate) => {
       await this._updateAgentWriterConfig({[rtcId]: { video_remb: bitrate }});
     })
   }
@@ -70,16 +70,19 @@ class App {
     this.regularVideoComponents = Array.from(els).map(el => {
       let videoComponent = new VideoComponent(el);
 
-      videoComponent.onMakeLeader(async rtcId => {
-        let oldLeaderRtcId = this.leaderVideoComponent.getRtcId();
-        await this._createLeaderEvent(rtcId);
+      videoComponent.onMakePin(async rtcId => {
+        let rtc = this.rtcs.find(rtc => rtc.id === rtcId);
+        if (!rtc) throw `Failed to init video component. RTC ${rtcId} not found.`;
+
+        let oldPinRtcId = this.pinVideoComponent.getRtcId();
+        await this._createPinEvent(rtc.created_by);
 
         let configs = {
-          [rtcId]: { video_remb: VIDEO_REMBS.leader }
+          [rtcId]: { video_remb: VIDEO_REMBS.pin }
         };
 
-        if (oldLeaderRtcId) {
-          configs[oldLeaderRtcId] = {
+        if (oldPinRtcId) {
+          configs[oldPinRtcId] = {
             video_remb: VIDEO_REMBS.regular,
           };
         }
@@ -110,7 +113,7 @@ class App {
   _initViewerManager() {
     this.viewerManager = new ViewerManager(
       this.conferenceClient,
-      this.leaderVideoComponent,
+      this.pinVideoComponent,
       this.regularVideoComponents,
     );
   }
@@ -165,7 +168,7 @@ class App {
     });
 
     const stream = await navigator.mediaDevices.getUserMedia(CONSTRAINTS);
-    this.viewerManager.connectLocalStream(this.ownedRtc.id, stream);
+    this.viewerManager.connectLocalStream(this.ownedRtc, stream);
     this.publisher.addTracks(stream);
 
     let sdpOffer = await this.publisher.getSdpOffer(true);
@@ -189,7 +192,9 @@ class App {
           rtcStream.time &&
           rtcStream.time[0] &&
           !rtcStream.time[1]) {
-          promises.push(this.viewerManager.connect(rtcStream.rtc_id));
+          let rtc = this.rtcs.find(r => r.id === rtcStream.rtc_id);
+          if (!rtc) throw `Failed to connect tot running stream. RTC ${rtcStream.rtc_id} not found.`;
+          promises.push(this.viewerManager.connect(rtc));
         }
       }
     }
@@ -218,31 +223,32 @@ class App {
     }
   }
 
-  async fetchLeader() {
-    let response = await this.eventClient.readState(this.eventRoomId, ['leader']);
+  async fetchPin() {
+    let response = await this.eventClient.readState(this.eventRoomId, ['pin']);
     
-    if (response.leader.data) {
-      this._toggleLeader(response.leader.data.rtcId);
+    if (response.pin.data) {
+      let rtc = this.rtcs.find(rtc => rtc.created_by === response.pin.data.agent_id);
+      this._togglePin(rtc.id);
     }
   }
 
-  _toggleLeader(leaderRtcId) {
-    let oldLeaderRtcId = this.leaderVideoComponent.getRtcId();
-    if (!this.viewerManager.isConnected(leaderRtcId)) return;
+  _togglePin(pinRtcId) {
+    let oldPinRtcId = this.pinVideoComponent.getRtcId();
+    if (!this.viewerManager.isConnected(pinRtcId)) return;
 
     let ownedRtcId = this.ownedRtc && this.ownedRtc.id;
 
-    if (leaderRtcId === ownedRtcId) {
-      this.publisher.toggleLeaderConstraints(true);
-    } else if (oldLeaderRtcId === ownedRtcId) {
-      this.publisher.toggleLeaderConstraints(false);
+    if (pinRtcId === ownedRtcId) {
+      this.publisher.togglePinConstraints(true);
+    } else if (oldPinRtcId === ownedRtcId) {
+      this.publisher.togglePinConstraints(false);
     }
 
-    this.viewerManager.toggleLeader(leaderRtcId);
+    this.viewerManager.togglePin(pinRtcId);
   }
 
-  async _createLeaderEvent(rtcId) {
-    await this.eventClient.createEvent(this.eventRoomId, 'leader', 'leader', { rtcId });
+  async _createPinEvent(agentId) {
+    await this.eventClient.createEvent(this.eventRoomId, 'pin', 'pin', { agent_id: agentId });
   }
 
   async _updateAgentReaderConfig(configs) {
@@ -279,14 +285,18 @@ class App {
       }
     } else {
       // Stream started.
-      await this.viewerManager.connect(event.rtc_id);
-      if (event.rtc_id === this.leaderVideoComponent.getRtcId()) this._toggleLeader(event.rtc_id);
+      let rtc = this.rtcs.find(r => r.id === event.rtc_id);
+      if (!rtc) throw `Failed to handle stream start. RTC ${event.rtc_id} not found.`;
+
+      await this.viewerManager.connect(rtc);
+      if (event.rtc_id === this.pinVideoComponent.getRtcId()) this._togglePin(rtc.id);
     }
   }
 
   _onEventCreate(event) {
-    if (event.type === 'leader' && event.set === 'leader') {
-      this._toggleLeader(event.data.rtcId);
+    if (event.type === 'pin' && event.set === 'pin') {
+      let rtc = this.rtcs.find(r => r.created_by === event.data.agent_id);
+      this._togglePin(rtc.id);
     }
   }
 }
@@ -316,9 +326,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     window.localStorage.setItem('mg-proto-agent-label', config.agentLabel);
   }
 
-  let leaderVideoEl = document.getElementsByClassName('video-component leader')[0];
+  let pinVideoEl = document.getElementsByClassName('video-component pin')[0];
   let regularVideoEls = document.getElementsByClassName('video-component regular');
-  let app = new App(config, leaderVideoEl, regularVideoEls);
+  let app = new App(config, pinVideoEl, regularVideoEls);
 
   await app.connect();
   await app.enterConferenceRoom();
@@ -326,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   await app.initOwnedRtc();
   await app.startStreaming();
   await app.connectToRunningStreams();
-  await app.fetchLeader();
+  await app.fetchPin();
   await app.fetchAgentReaderConfig();
   await app.fetchAgentWriterConfig();
 });

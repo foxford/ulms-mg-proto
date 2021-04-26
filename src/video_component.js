@@ -14,7 +14,7 @@ export default class VideoComponent {
   constructor(el) {
     this.state = { ...INITIAL_STATE };
 
-    this.onMakeLeaderCallback = null;
+    this.onMakePinCallback = null;
     this.onMuteVideoForMeCallback = null;
     this.onMuteVideoForAllCallback = null;
     this.onMuteAudioForMeCallback = null;
@@ -23,7 +23,7 @@ export default class VideoComponent {
 
     this.el = el;
     this.videoEl = el.getElementsByTagName('video')[0];
-    this.makeLeaderBtnEl = el.getElementsByClassName('make-leader-btn')[0];
+    this.makePinBtnEl = el.getElementsByClassName('make-pin-btn')[0];
     this.muteVideoForMeBtnEl = el.getElementsByClassName('mute-video-for-me-btn')[0];
     this.muteVideoForAllBtnEl = el.getElementsByClassName('mute-video-for-all-btn')[0];
     this.muteAudioForMeBtnEl = el.getElementsByClassName('mute-audio-for-me-btn')[0];
@@ -34,8 +34,8 @@ export default class VideoComponent {
     this.bitrateRequestInputEl = el.getElementsByClassName('bitrate-request-input')[0];
     this.bitrateRequestSubmitEl = el.getElementsByClassName('bitrate-request-submit')[0];
 
-    if (this.makeLeaderBtnEl) {
-      this.makeLeaderBtnEl.addEventListener('click', this._onMakeLeaderBtnClick.bind(this));
+    if (this.makePinBtnEl) {
+      this.makePinBtnEl.addEventListener('click', this._onMakePinBtnClick.bind(this));
     }
 
     this.muteVideoForMeBtnEl.addEventListener('click', this._onMuteVideoForMeBtnClick.bind(this));
@@ -51,8 +51,8 @@ export default class VideoComponent {
     }
   }
 
-  onMakeLeader(callback) {
-    this.onMakeLeaderCallback = callback;
+  onMakePin(callback) {
+    this.onMakePinCallback = callback;
   }
 
   onMuteVideoForMe(callback) {
@@ -126,8 +126,8 @@ export default class VideoComponent {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  async _onMakeLeaderBtnClick() {
-    if (this.onMakeLeaderCallback) await this.onMakeLeaderCallback(this.state.rtcId);
+  async _onMakePinBtnClick() {
+    if (this.onMakePinCallback) await this.onMakePinCallback(this.state.rtcId);
   }
 
   async _onMuteVideoForMeBtnClick() {

@@ -1,4 +1,4 @@
-import { ICE_SERVERS, VIDEO_CONSTRAINTS_REGULAR, VIDEO_CONSTRAINTS_LEADER } from './constants';
+import { ICE_SERVERS, VIDEO_CONSTRAINTS_REGULAR, VIDEO_CONSTRAINTS_PIN } from './constants';
 import { transformOfferSDP } from './sdp';
 
 const ICE_CANDIDATES_BUFFER_FLUSH_PERIOD = 200;
@@ -45,8 +45,8 @@ export default class PcManager {
     stream.getTracks().forEach(track => this.pc.addTrack(track, stream));
   }
 
-  toggleLeaderConstraints(isLeader) {
-    let constraints = isLeader ? VIDEO_CONSTRAINTS_LEADER : VIDEO_CONSTRAINTS_REGULAR;
+  togglePinConstraints(isPin) {
+    let constraints = isPin ? VIDEO_CONSTRAINTS_PIN : VIDEO_CONSTRAINTS_REGULAR;
     let sender = this.pc.getSenders().find(sender => sender.track.kind === 'video');
 
     if (sender) {
